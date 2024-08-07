@@ -1,4 +1,3 @@
-import { withSentryConfig } from "@sentry/nextjs";
 import nextI18NextConfig from "./next-i18next.config.js";
 
 // @ts-check
@@ -20,31 +19,29 @@ const config = {
       poll: 1000,
       aggregateTimeout: 300
     };
+    config.module.rules.push({
+      test: /\.svg$/i,
+      issuer: /\.[jt]sx?$/,
+      use: ['@svgr/webpack'],
+    })
     return config;
+  },
+  rewrites() {
+      return {
+          beforeFiles: [
+              {
+                  source: '/:path*',
+                  has: [
+                      {
+                          type: 'host',
+                          value: 'reworkd.ai',
+                      },
+                  ],
+                  destination: '/landing-page',
+              },
+          ]
+      }
   }
 };
-export default withSentryConfig(config, {
-  // For all available options, see https://github.com/getsentry/sentry-webpack-plugin#options
 
-  // Suppresses source map uploading logs during build
-  silent: true,
-  org: "reworkd",
-  project: "agentgpt"
-}, {
-  // For all available options, see  https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
-  // Upload a larger set of source maps for prettier stack traces (increases build time)
-  widenClientFileUpload: true,
-
-  // Transpiles SDK to be compatible with IE11 (increases bundle size)
-  transpileClientSDK: false,
-
-  // Routes browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers (increases server load)
-  tunnelRoute: "/monitoring",
-
-  // Hides source maps from generated client bundles
-  hideSourceMaps: true,
-
-  // Automatically tree-shake Sentry logger statements to reduce bundle size
-  disableLogger: true,
-  environment: process.env.NEXT_PUBLIC_VERCEL_ENV
-});
+export default config;

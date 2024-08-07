@@ -1,57 +1,55 @@
-import { createSelectors } from "./helpers";
 import type { StateCreator } from "zustand";
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import type AutonomousAgent from "../components/AutonomousAgent";
-import { AGENT_PAUSE, AUTOMATIC_MODE } from "../types/agentTypes";
-import type { AgentPlaybackControl, AgentMode } from "../types/agentTypes";
+import { createJSONStorage, persist } from "zustand/middleware";
 
-const resetters: (() => void)[] = [];
-
-const initialAgentState = {
-  agent: null,
-  isAgentStopped: true,
-  isWebSearchEnabled: false,
-  isAgentPaused: undefined,
-};
+import { createSelectors } from "./helpers";
+import type { ActiveTool } from "../hooks/useTools";
+import type { AgentLifecycle } from "../services/agent/agent-run-model";
+import type AutonomousAgent from "../services/agent/autonomous-agent";
 
 interface AgentSlice {
   agent: AutonomousAgent | null;
-  isAgentStopped: boolean;
-  isAgentPaused: boolean | undefined;
-  agentMode: AgentMode;
-  updateAgentMode: (agentMode: AgentMode) => void;
-  updateIsAgentPaused: (agentPlaybackControl: AgentPlaybackControl) => void;
-  updateIsAgentStopped: () => void;
-  isWebSearchEnabled: boolean;
-  setIsWebSearchEnabled: (isWebSearchEnabled: boolean) => void;
+  lifecycle: AgentLifecycle;
+  setLifecycle: (AgentLifecycle) => void;
+  summarized: boolean;
+  setSummarized: (boolean) => void;
+  isAgentThinking: boolean;
+  setIsAgentThinking: (isThinking: boolean) => void;
   setAgent: (newAgent: AutonomousAgent | null) => void;
 }
+
+const initialAgentState = {
+  agent: null,
+  lifecycle: "offline" as const,
+  summarized: false,
+  isAgentThinking: false,
+  isAgentPaused: undefined,
+};
+
+interface ToolsSlice {
+  tools: Omit<ActiveTool, "active">[];
+  setTools: (tools: ActiveTool[]) => void;
+}
+
+const resetters: (() => void)[] = [];
 
 const createAgentSlice: StateCreator<AgentSlice> = (set, get) => {
   resetters.push(() => set(initialAgentState));
   return {
     ...initialAgentState,
-    agentMode: AUTOMATIC_MODE,
-    updateAgentMode: (agentMode) => {
+    setLifecycle: (lifecycle: AgentLifecycle) => {
       set(() => ({
-        agentMode,
+        lifecycle: lifecycle,
       }));
     },
-    updateIsAgentPaused: (agentPlaybackControl) => {
+    setSummarized: (summarized: boolean) => {
       set(() => ({
-        isAgentPaused: agentPlaybackControl === AGENT_PAUSE,
+        summarized: summarized,
       }));
     },
-    updateIsAgentStopped: () => {
-      set((state) => ({
-        isAgentStopped: !state.agent?.isRunning,
-      }));
-    },
-    isWebSearchEnabled: false,
-    setIsWebSearchEnabled: (isWebSearchEnabled) => {
+    setIsAgentThinking: (isThinking: boolean) => {
       set(() => ({
-        isWebSearchEnabled,
+        isAgentThinking: isThinking,
       }));
     },
     setAgent: (newAgent) => {
@@ -60,29 +58,39 @@ const createAgentSlice: StateCreator<AgentSlice> = (set, get) => {
       }));
 
       if (get().agent === null) {
-        resetAllAgentSlices();
+        resetters.forEach((resetter) => resetter());
       }
     },
   };
 };
 
-const agentStore = create<AgentSlice>()(
-  persist(
-    (...a) => ({
-      ...createAgentSlice(...a),
-    }),
-    {
-      name: "agent-storage",
-      storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        agentMode: state.agentMode,
-        // isWebSearchEnabled: state.isWebSearchEnabled
+const createToolsSlice: StateCreator<ToolsSlice> = (set) => {
+  return {
+    tools: [],
+    setTools: (tools) => {
+      set(() => ({
+        tools: tools,
+      }));
+    },
+  };
+};
+
+export const useAgentStore = createSelectors(
+  create<AgentSlice & ToolsSlice>()(
+    persist(
+      (...a) => ({
+        ...createAgentSlice(...a),
+        ...createToolsSlice(...a),
       }),
-    }
+      {
+        name: "agent-storage-v2",
+        storage: createJSONStorage(() => localStorage),
+        partialize: (state) => ({
+          tools: state.tools,
+        }),
+      }
+    )
   )
 );
 
-export const useAgentStore = createSelectors(agentStore);
-
-export const resetAllAgentSlices = () =>
-  resetters.forEach((resetter) => resetter());
+export const resetAllAgentSlices = () => resetters.forEach((resetter) => resetter());

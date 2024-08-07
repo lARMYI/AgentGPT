@@ -1,47 +1,65 @@
+import { Menu as MenuPrimitive, Transition } from "@headlessui/react";
+import clsx from "clsx";
 import type { ReactNode } from "react";
 import { Fragment } from "react";
-import { Menu as MenuPrimitive, Transition } from "@headlessui/react";
 import { FaChevronDown } from "react-icons/fa";
-import clsx from "clsx";
 
 interface MenuProps {
   icon?: ReactNode;
-  name: string;
+  chevron?: boolean;
+  name?: string;
+  buttonPosition?: "top" | "bottom";
   items: JSX.Element[];
-  styleClass?: { [key: string]: string };
 }
 
-function Menu({ icon, name, items, styleClass }: MenuProps) {
+function Menu({ icon, name, items, chevron, buttonPosition = "top" }: MenuProps) {
   return (
     <MenuPrimitive>
-      <div className={styleClass?.container}>
-        <MenuPrimitive.Button className={clsx(styleClass?.input, "flex items-center gap-1")}>
+      <div className="relative">
+        <MenuPrimitive.Button className="flex h-8 items-center gap-1 rounded-lg bg-slate-1 p-2 font-bold shadow-depth-1 hover:bg-slate-3">
           <div>{icon}</div>
-          <p>{name}</p>
-          <FaChevronDown size={15} className="ml-2" />
+          {name && <p className="text-gray/50 font-mono text-sm">{name}</p>}
+          {chevron && <FaChevronDown size={15} className="ml-2" />}
         </MenuPrimitive.Button>
-        <Transition
-          enter="transition duration-100 ease-out"
-          enterFrom="transform scale-95 opacity-0"
-          enterTo="transform scale-100 opacity-100"
-          leave="transition duration-75 ease-out"
-          leaveFrom="transform scale-100 opacity-100"
-          leaveTo="transform scale-95 opacity-0"
-        >
-          <MenuPrimitive.Items className="absolute right-0 top-full z-20 mt-1 max-h-48 w-full overflow-hidden rounded-xl border-[2px] border-white/10 bg-[#3a3a3a] tracking-wider shadow-xl outline-0">
-            {items.map((item) => {
-              const itemName = (item.props as { name: string }).name;
-              return (
-                <MenuPrimitive.Item key={itemName} as={Fragment}>
-                  <div className={styleClass?.option}>{item}</div>
-                </MenuPrimitive.Item>
-              );
-            })}
-          </MenuPrimitive.Items>
-        </Transition>
+        <MenuItems buttonPosition={buttonPosition} items={items} />
       </div>
     </MenuPrimitive>
   );
 }
+
+type MenuItemsProps = {
+  buttonPosition: "top" | "bottom";
+  items: JSX.Element[];
+  show?: boolean;
+};
+
+export const MenuItems = ({ buttonPosition, items, show }: MenuItemsProps) => {
+  return (
+    <Transition
+      show={show ? true : undefined}
+      enter="transition duration-100 ease-out"
+      enterFrom="transform scale-95 opacity-0"
+      enterTo="transform scale-100 opacity-100"
+      leave="transition duration-75 ease-out"
+      leaveFrom="transform scale-100 opacity-100"
+      leaveTo="transform scale-95 opacity-0"
+    >
+      <MenuPrimitive.Items
+        className={clsx(
+          "background-color-3 absolute right-0 z-20 max-h-48  w-fit min-w-full overflow-hidden rounded-xl shadow-xl",
+          buttonPosition === "top" ? "top-full mt-1" : "bottom-full mb-9"
+        )}
+      >
+        {items.map((item, i) => {
+          return (
+            <MenuPrimitive.Item key={i} as={Fragment}>
+              <div className="w-full">{item}</div>
+            </MenuPrimitive.Item>
+          );
+        })}
+      </MenuPrimitive.Items>
+    </Transition>
+  );
+};
 
 export default Menu;
